@@ -146,7 +146,7 @@ def get_path_iterator(tsv, nshard, rank):
         def iterate():
             for line in lines:
                 items = line.strip().split("\t")
-                visual_path = f"{root}/{items[2]}"
+                visual_path = f"{root}/{items[1]}"
                 audio_path = f"{root}/{items[2]}"
                 yield (visual_path, audio_path + ":" + items[0]), int(items[3])
 
