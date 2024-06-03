@@ -45,26 +45,30 @@ class VSPLLMConfig(FairseqDataclass):
     )
     dropout_input: float = field(
         default=0.0,
-        metadata={"help": "dropout to apply to the input (after feat extr)"},
+        metadata={
+            "help": "dropout to apply to the input (after feat extr)"
+        },
     )
     final_dropout: float = field(
         default=0.0,
-        metadata={"help": "dropout after transformer and before final projection"},
+        metadata={
+            "help": "dropout after transformer and before final projection"
+        },
     )
     dropout: float = field(
         default=0.0,
-        metadata={"help": "dropout probability inside hubert model"},
+        metadata={"help": "dropout probability inside hubert"},
     )
     attention_dropout: float = field(
         default=0.0,
         metadata={
-            "help": "dropout probability for attention weights " "inside hubert model"
+            "help": "dropout probability for attention weights inside hubert"
         },
     )
     activation_dropout: float = field(
         default=0.0,
         metadata={
-            "help": "dropout probability after activation in FFN " "inside hubert model"
+            "help": "dropout probability after activation in FFN inside hubert"
         },
     )
 
@@ -239,7 +243,9 @@ class avhubert_llm_seq2seq_cluster_count(BaseFairseqModel):
         }
 
         if cfg.w2v_args is None:
-            state = checkpoint_utils.load_checkpoint_to_cpu(cfg.w2v_path, arg_overrides)
+            state = checkpoint_utils.load_checkpoint_to_cpu(
+                cfg.w2v_path, arg_overrides
+            )
             w2v_args = state.get("cfg", None)
             if w2v_args is None:
                 w2v_args = convert_namespace_to_omegaconf(state["args"])
@@ -248,7 +254,8 @@ class avhubert_llm_seq2seq_cluster_count(BaseFairseqModel):
             state = None
             w2v_args = cfg.w2v_args
             if isinstance(w2v_args, Namespace):
-                cfg.w2v_args = w2v_args = convert_namespace_to_omegaconf(w2v_args)
+                w2v_args = convert_namespace_to_omegaconf(w2v_args)
+                cfg.w2v_args = w2v_args
 
         assert cfg.normalize == w2v_args.task.normalize, (
             "Fine-tuning works best when data normalization is the same. "
