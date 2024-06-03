@@ -146,8 +146,8 @@ def get_path_iterator(tsv, nshard, rank):
         def iterate():
             for line in lines:
                 items = line.strip().split("\t")
-                visual_path = f"{root}:{items[2]}"
-                audio_path = f"{root}:{items[2]}"
+                visual_path = f"{root}/{items[2]}"
+                audio_path = f"{root}/{items[2]}"
                 yield (visual_path, audio_path + ":" + items[0]), int(items[3])
 
         return iterate, len(lines)
@@ -203,7 +203,7 @@ if __name__ == "__main__":
     logger.info(args)
     fairseq.utils.import_user_module(args)
     sys.path.append(args.user_dir)
-    import utils_vsp_llm as custom_utils
+    import src.utils_vsp_llm as custom_utils
 
     kwargs = vars(args)
     kwargs.update({"custom_utils": custom_utils})
