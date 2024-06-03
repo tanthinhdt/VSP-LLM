@@ -7,7 +7,6 @@
 import sys, logging
 from argparse import Namespace
 from typing import Dict, List, Optional, Tuple, Any
-import os
 import torch
 import torch.nn as nn
 from transformers import AutoModelForCausalLM, BitsAndBytesConfig
@@ -25,9 +24,12 @@ from omegaconf import II, MISSING
 logger = logging.getLogger(__name__)
 
 
-MASKING_DISTRIBUTION_CHOICES = ChoiceEnum(
-    ["static", "uniform", "normal", "poisson"]
-)
+MASKING_DISTRIBUTION_CHOICES = ChoiceEnum([
+    "static",
+    "uniform",
+    "normal",
+    "poisson",
+])
 
 
 @dataclass
@@ -48,9 +50,7 @@ class VSPLLMConfig(FairseqDataclass):
     )
     final_dropout: float = field(
         default=0.0,
-        metadata={
-            "help": "dropout after transformer and before final projection"
-        },
+        metadata={"help": "dropout after transformer and before final projection"},
     )
     dropout: float = field(
         default=0.0,
@@ -59,15 +59,13 @@ class VSPLLMConfig(FairseqDataclass):
     attention_dropout: float = field(
         default=0.0,
         metadata={
-            "help": "dropout probability for attention weights "
-                    "inside hubert model"
+            "help": "dropout probability for attention weights " "inside hubert model"
         },
     )
     activation_dropout: float = field(
         default=0.0,
         metadata={
-            "help": "dropout probability after activation in FFN "
-                    "inside hubert model"
+            "help": "dropout probability after activation in FFN " "inside hubert model"
         },
     )
 
@@ -82,7 +80,7 @@ class VSPLLMConfig(FairseqDataclass):
         default=0.5,
         metadata={
             "help": "probability of replacing a token with mask "
-                    "(normalized by length)"
+            "(normalized by length)"
         },
     )
     mask_selection: MASKING_DISTRIBUTION_CHOICES = field(
@@ -92,8 +90,8 @@ class VSPLLMConfig(FairseqDataclass):
         default=0,
         metadata={
             "help": "secondary mask argument "
-                    "(used for more complex distributions), "
-                    "see help in compute_mask_indices"
+            "(used for more complex distributions), "
+            "see help in compute_mask_indices"
         },
     )
     no_mask_overlap: bool = field(
@@ -117,8 +115,8 @@ class VSPLLMConfig(FairseqDataclass):
         default=0,
         metadata={
             "help": "secondary mask argument "
-                    "(used for more complex distributions), "
-                    "see help in compute_mask_indices"
+            "(used for more complex distributions), "
+            "see help in compute_mask_indices"
         },
     )
     no_mask_channel_overlap: bool = field(
@@ -154,16 +152,15 @@ class VSPLLMConfig(FairseqDataclass):
     )
 
 
-
 class HubertEncoderWrapper(FairseqEncoder):
     def __init__(self, w2v_model):
         super().__init__(None)
         self.w2v_model = w2v_model
 
     def forward_(self, source, padding_mask, **kwargs):
-        src ={}
-        src['video'] = source
-        src['audio'] = None
+        src = {}
+        src["video"] = source
+        src["audio"] = None
         w2v_args = {
             "source": src,
             "padding_mask": padding_mask,
@@ -176,42 +173,37 @@ class HubertEncoderWrapper(FairseqEncoder):
         return {
             "encoder_out": x,  # T x B x C
             "encoder_padding_mask": padding_mask,  # B x T
-            "padding_mask": padding_mask
+            "padding_mask": padding_mask,
         }
 
-
     def forward(self, source, padding_mask, **kwargs):
-            w2v_args = {
-                "source": source,
-                "padding_mask": padding_mask,
-            }
+        w2v_args = {
+            "source": source,
+            "padding_mask": padding_mask,
+        }
 
-            x, padding_mask = self.w2v_model.extract_finetune(**w2v_args)
+        x, padding_mask = self.w2v_model.extract_finetune(**w2v_args)
 
-
-            return {
-                "encoder_out": x,  # T x B x C
-                "encoder_padding_mask": padding_mask,  # B x T
-                "padding_mask": padding_mask
-            }
- 
+        return {
+            "encoder_out": x,  # T x B x C
+            "encoder_padding_mask": padding_mask,  # B x T
+            "padding_mask": padding_mask,
+        }
 
     def reorder_encoder_out(self, encoder_out, new_order):
         if encoder_out["encoder_out"] is not None:
-            encoder_out["encoder_out"] = encoder_out[
-                "encoder_out"
-            ].index_select(1, new_order)
+            encoder_out["encoder_out"] = encoder_out["encoder_out"].index_select(
+                1, new_order
+            )
         if encoder_out["encoder_padding_mask"] is not None:
             encoder_out["encoder_padding_mask"] = encoder_out[
                 "encoder_padding_mask"
             ].index_select(0, new_order)
         if encoder_out["padding_mask"] is not None:
-            encoder_out["padding_mask"] = encoder_out[
-                "padding_mask"
-            ].index_select(0, new_order)
+            encoder_out["padding_mask"] = encoder_out["padding_mask"].index_select(
+                0, new_order
+            )
         return encoder_out
-
-
 
 
 @register_model("vsp_llm", dataclass=VSPLLMConfig)
@@ -223,7 +215,7 @@ class avhubert_llm_seq2seq_cluster_count(BaseFairseqModel):
         self.decoder = decoder
         self.avfeat_to_llm = nn.Linear(1024, 4096)
         self.freeze_finetune_updates = cfg.freeze_finetune_updates
-        
+
     @classmethod
     def build_model(cls, cfg, task):
         """Build a new model instance."""
@@ -248,9 +240,7 @@ class avhubert_llm_seq2seq_cluster_count(BaseFairseqModel):
         }
 
         if cfg.w2v_args is None:
-            state = checkpoint_utils.load_checkpoint_to_cpu(
-                cfg.w2v_path, arg_overrides
-            )
+            state = checkpoint_utils.load_checkpoint_to_cpu(cfg.w2v_path, arg_overrides)
             w2v_args = state.get("cfg", None)
             if w2v_args is None:
                 w2v_args = convert_namespace_to_omegaconf(state["args"])
@@ -259,9 +249,7 @@ class avhubert_llm_seq2seq_cluster_count(BaseFairseqModel):
             state = None
             w2v_args = cfg.w2v_args
             if isinstance(w2v_args, Namespace):
-                cfg.w2v_args = w2v_args = convert_namespace_to_omegaconf(
-                    w2v_args
-                )
+                cfg.w2v_args = w2v_args = convert_namespace_to_omegaconf(w2v_args)
 
         assert cfg.normalize == w2v_args.task.normalize, (
             "Fine-tuning works best when data normalization is the same. "
@@ -272,123 +260,132 @@ class avhubert_llm_seq2seq_cluster_count(BaseFairseqModel):
 
         task_pretrain = tasks.setup_task(w2v_args.task)
         if state is not None:
-            task_pretrain.load_state_dict(state['task_state'])
+            task_pretrain.load_state_dict(state["task_state"])
 
         encoder_ = task_pretrain.build_model(w2v_args.model)
 
         encoder = HubertEncoderWrapper(encoder_)
         if state is not None and not cfg.no_pretrained_weights:
             # set strict=False because we omit some modules
-            del state['model']['mask_emb']
+            del state["model"]["mask_emb"]
             encoder.w2v_model.load_state_dict(state["model"], strict=False)
 
         encoder.w2v_model.remove_pretraining_modules()
-        
+
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_use_double_quant=True,
             bnb_4bit_quant_type="nf4",
-            bnb_4bit_compute_dtype=torch.bfloat16
+            bnb_4bit_compute_dtype=torch.bfloat16,
         )
 
-        decoder_4bit = AutoModelForCausalLM.from_pretrained(cfg.llm_ckpt_path, quantization_config=bnb_config)            
+        decoder_4bit = AutoModelForCausalLM.from_pretrained(
+            cfg.llm_ckpt_path, quantization_config=bnb_config
+        )
 
         config = LoraConfig(
-            r=16, 
-            lora_alpha=32, 
-            target_modules=["q_proj", "v_proj", "k_proj"], 
-            lora_dropout=0.05, 
-            bias="none", 
-            task_type="CAUSAL_LM" 
+            r=16,
+            lora_alpha=32,
+            target_modules=["q_proj", "v_proj", "k_proj"],
+            lora_dropout=0.05,
+            bias="none",
+            task_type="CAUSAL_LM",
         )
 
         decoder_4bit = get_peft_model(decoder_4bit, config)
         decoder_4bit.print_trainable_parameters()
-        
+
         return avhubert_llm_seq2seq_cluster_count(encoder, decoder_4bit, cfg)
-    
+
     def forward(self, **kwargs):
         ft = self.freeze_finetune_updates <= self.num_updates
         with torch.no_grad() if not ft else contextlib.ExitStack():
             output = self.encoder(**kwargs)
-    
-        output['encoder_out'] = self.avfeat_to_llm(output['encoder_out'])
-        
-        cluster_counts = kwargs['source']['cluster_counts'][0] # tensor list
-        
+
+        output["encoder_out"] = self.avfeat_to_llm(output["encoder_out"])
+
+        cluster_counts = kwargs["source"]["cluster_counts"][0]  # tensor list
+
         results_tensor = []
         start_idx = 0
         for clutser_num in cluster_counts:
             end_idx = start_idx + clutser_num
-            slice = output['encoder_out'][:,start_idx:end_idx,:]
+            slice = output["encoder_out"][:, start_idx:end_idx, :]
             mean_tensor = torch.mean(slice, dim=1, keepdim=True)
-            results_tensor.append(mean_tensor)            
+            results_tensor.append(mean_tensor)
             start_idx = end_idx
 
-        assert(cluster_counts.sum().item() == output['encoder_out'].size()[1])
+        assert cluster_counts.sum().item() == output["encoder_out"].size()[1]
 
-        reduced_enc_out = torch.cat(results_tensor, dim=1)      
+        reduced_enc_out = torch.cat(results_tensor, dim=1)
         B, T, D = reduced_enc_out.size()
-        instruction = kwargs['source']['text']
+        instruction = kwargs["source"]["text"]
         instruction_embedding = self.decoder.model.model.embed_tokens(instruction)
 
-        labels = kwargs['target_list'].clone()
+        labels = kwargs["target_list"].clone()
         labels_embedding = self.decoder.model.model.embed_tokens(labels)
 
-        llm_input = torch.cat((instruction_embedding, reduced_enc_out, labels_embedding), dim=1)
+        llm_input = torch.cat(
+            (instruction_embedding, reduced_enc_out, labels_embedding), dim=1
+        )
         llm_labels = labels.clone()
         llm_labels[llm_labels == 0] = -100
-        
+
         _, instruction_embedding_t, _ = instruction_embedding.size()
-        target_ids = torch.full((B, T + instruction_embedding_t),-100).long().to(labels.device)
+        target_ids = (
+            torch.full((B, T + instruction_embedding_t), -100).long().to(labels.device)
+        )
         llm_labels = torch.cat((target_ids, llm_labels), dim=1)
-        llm_out = self.decoder(inputs_embeds=llm_input, labels=llm_labels, return_dict=True)
-        
+        llm_out = self.decoder(
+            inputs_embeds=llm_input, labels=llm_labels, return_dict=True
+        )
+
         return llm_out.loss, llm_out.logits
 
-
     @torch.no_grad()
-    def generate(self,
-                num_beams=20,
-                max_length=30,
-                min_length=1,
-                top_p=0.9,
-                repetition_penalty=1.0,
-                length_penalty=0.0,
-                  **kwargs,
-                ):
+    def generate(
+        self,
+        num_beams=20,
+        max_length=30,
+        min_length=1,
+        top_p=0.9,
+        repetition_penalty=1.0,
+        length_penalty=0.0,
+        **kwargs,
+    ):
         output = self.encoder(**kwargs)
-        output['encoder_out'] = self.avfeat_to_llm(output['encoder_out'])
-        cluster_counts = kwargs['source']['cluster_counts'][0] # tensor list
-        
+        output["encoder_out"] = self.avfeat_to_llm(output["encoder_out"])
+        cluster_counts = kwargs["source"]["cluster_counts"][0]  # tensor list
+
         results_tensor = []
         start_idx = 0
 
         for clutser_num in cluster_counts:
             end_idx = start_idx + clutser_num
-            slice = output['encoder_out'][:,start_idx:end_idx,:]
+            slice = output["encoder_out"][:, start_idx:end_idx, :]
             mean_tensor = torch.mean(slice, dim=1, keepdim=True)
-            results_tensor.append(mean_tensor)            
+            results_tensor.append(mean_tensor)
             start_idx = end_idx
 
-        assert(cluster_counts.sum().item() == output['encoder_out'].size()[1])
+        assert cluster_counts.sum().item() == output["encoder_out"].size()[1]
 
-        reduced_enc_out = torch.cat(results_tensor, dim=1)     
+        reduced_enc_out = torch.cat(results_tensor, dim=1)
         B, T, D = reduced_enc_out.size()
-        instruction = kwargs['source']['text']
+        instruction = kwargs["source"]["text"]
         instruction_embedding = self.decoder.model.model.embed_tokens(instruction)
-        llm_input = torch.cat((instruction_embedding, reduced_enc_out), dim=1) 
+        llm_input = torch.cat((instruction_embedding, reduced_enc_out), dim=1)
 
         self.decoder.config.use_cache = True
-        outputs = self.decoder.generate(inputs_embeds=llm_input,
-                        top_p=top_p,
-                        num_beams=num_beams,
-                        max_new_tokens=max_length,
-                        min_length=min_length,
-                        repetition_penalty=repetition_penalty,
-                        do_sample=True,
-                        length_penalty=length_penalty,
-                        )
+        outputs = self.decoder.generate(
+            inputs_embeds=llm_input,
+            top_p=top_p,
+            num_beams=num_beams,
+            max_new_tokens=max_length,
+            min_length=min_length,
+            repetition_penalty=repetition_penalty,
+            do_sample=True,
+            length_penalty=length_penalty,
+        )
 
         return outputs
 
@@ -416,13 +413,17 @@ class avhubert_llm_seq2seq_cluster_count(BaseFairseqModel):
 
     def state_dict(self):
         old_state = super().state_dict()
-        state = {k:v for k,v in old_state.items() if 'lora' in k or 'avfeat_to_llm' in k or 'encoder' in k}
+        state = {
+            k: v
+            for k, v in old_state.items()
+            if "lora" in k or "avfeat_to_llm" in k or "encoder" in k
+        }
         return state
 
 
 def Embedding(num_embeddings, embedding_dim, padding_idx):
     m = nn.Embedding(num_embeddings, embedding_dim, padding_idx=padding_idx)
-    nn.init.normal_(m.weight, mean=0, std=embedding_dim ** -0.5)
+    nn.init.normal_(m.weight, mean=0, std=embedding_dim**-0.5)
     nn.init.constant_(m.weight[padding_idx], 0)
     return m
 
