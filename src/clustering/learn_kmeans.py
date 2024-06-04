@@ -114,6 +114,8 @@ def learn_kmeans(
         reassignment_ratio,
     )
     km_model.fit(feat)
+
+    os.makedirs(os.path.dirname(km_path), exist_ok=True)
     joblib.dump(km_model, km_path)
 
     inertia = -km_model.score(feat) / len(feat)
