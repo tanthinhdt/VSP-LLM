@@ -229,6 +229,7 @@ class VSP_LLM_dataset(FairseqDataset):
             "fr": "French",
             "it": "Italian",
             "pt": "Portuguese",
+            "vi": "Vietnamese",
         }
 
         assert self.single_target == (
@@ -427,15 +428,15 @@ class VSP_LLM_dataset(FairseqDataset):
         labels = [torch.cat((labels[0], torch.tensor([2]).long()))]
 
         fid = self.names[index][1].split(":")[1]
-        src_lang, tgt_lang = fid.split("/")[1].split("-")
+        fid, src_lang, tgt_lang = fid.split("-")
         if src_lang == tgt_lang:
             txt_feats = self.llm_tokenizer(
-                f"Recognize this speech in {self.lang_dict[src_lang]}. Input : ",
+                f"Recognize this speech in {self.lang_dict[src_lang]}. Input: ",
                 return_tensors="pt",
             ).input_ids[0]
         else:
             txt_feats = self.llm_tokenizer(
-                f"Translate this {self.lang_dict[src_lang]} speech to {self.lang_dict[tgt_lang]}. Input : ",
+                f"Translate this {self.lang_dict[src_lang]} speech to {self.lang_dict[tgt_lang]}. Input: ",
                 return_tensors="pt",
             ).input_ids[0]
 
