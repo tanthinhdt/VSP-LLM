@@ -286,7 +286,9 @@ class avhubert_llm_seq2seq_cluster_count(BaseFairseqModel):
         )
 
         decoder_4bit = AutoModelForCausalLM.from_pretrained(
-            cfg.llm_ckpt_path, quantization_config=bnb_config
+            cfg.llm_ckpt_path,
+            quantization_config=bnb_config,
+            cache_dir='cache',
         )
 
         config = LoraConfig(
