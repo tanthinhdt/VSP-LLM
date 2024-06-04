@@ -16,11 +16,11 @@ from fairseq.criterions import FairseqCriterion, register_criterion
 from fairseq.dataclass import FairseqDataclass
 import editdistance
 
+
 @register_criterion("decoder_only_language_modeling_loss", dataclass=FairseqDataclass)
 class decoder_only_language_modeling_loss(FairseqCriterion):
     def __init__(self, task):
         super().__init__(task)
-
 
     def forward(self, model, sample, reduce=True):
         """Compute the loss for the given sample.
@@ -29,14 +29,14 @@ class decoder_only_language_modeling_loss(FairseqCriterion):
         2) the sample size, which is used as the denominator for the gradient
         3) logging outputs to display while training
         """
-        
-        loss, lprobs = model(target_list=sample["target"], 
-                        target_attn_mask=sample['target_attn_mask'],
-                        **sample["net_input"])
 
-        sample_size = (
-            sample["target"].size()[0]
+        loss, lprobs = model(
+            target_list=sample["target"],
+            target_attn_mask=sample["target_attn_mask"],
+            **sample["net_input"]
         )
+
+        sample_size = sample["target"].size()[0]
 
         logging_output = {
             "loss": loss.data,
@@ -51,13 +51,14 @@ class decoder_only_language_modeling_loss(FairseqCriterion):
 
         return loss, sample_size, logging_output
 
-    
     def compute_accuracy(self, lprobs, sample):
-        target = sample['net_input']['prev_output_tokens']
-        
-        b,t = target.size()
-        mask = sample['target_attn_mask'] == 1
-        n_correct = torch.sum(lprobs[:,-t:].argmax(2).masked_select(mask).eq(target.masked_select(mask)))
+        target = sample["net_input"]["prev_output_tokens"]
+
+        b, t = target.size()
+        mask = sample["target_attn_mask"] == 1
+        n_correct = torch.sum(
+            lprobs[:, -t:].argmax(2).masked_select(mask).eq(target.masked_select(mask))
+        )
         total = torch.sum(mask)
 
         return n_correct, total
@@ -87,11 +88,11 @@ class decoder_only_language_modeling_loss(FairseqCriterion):
             metrics.log_scalar("n_correct", n_correct)
             metrics.log_derived(
                 "accuracy",
-                lambda meters: round(
-                    meters["n_correct"].sum * 100.0 / meters["total"].sum, 3
-                )
-                if meters["total"].sum > 0
-                else float("nan"),
+                lambda meters: (
+                    round(meters["n_correct"].sum * 100.0 / meters["total"].sum, 3)
+                    if meters["total"].sum > 0
+                    else float("nan")
+                ),
             )
 
     @staticmethod
@@ -102,4 +103,3 @@ class decoder_only_language_modeling_loss(FairseqCriterion):
         to True will improves distributed training speed.
         """
         return False
-
