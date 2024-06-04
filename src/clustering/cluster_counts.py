@@ -1,5 +1,11 @@
+import argparse
 
-unit_pth = ???
+
+parser = argparse.ArgumentParser()
+parser.add_argument("unit_pth", type=str)
+args = parser.parse_args()
+
+unit_pth = args.unit_pth
 units = open(unit_pth).readlines()
 count_list = []
 for unit_line in units:
@@ -16,6 +22,6 @@ for unit_line in units:
     counts.append(current_count)
     str_counts = [str(x) for x in counts]
     count_list.append(' '.join(str_counts) + '\n')
-cluster_counts_pth = unit_pth.replace('.km','.cluster_counts')
+cluster_counts_pth = unit_pth.replace('.km', '.cluster_counts')
 with open(cluster_counts_pth, 'w') as f:
     f.write(''.join(count_list))
