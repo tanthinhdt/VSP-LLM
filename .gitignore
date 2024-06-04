@@ -163,5 +163,5 @@ cython_debug/
 exp/
 .hydra/
 outputs/
-data/
+/data/
 *.pt
