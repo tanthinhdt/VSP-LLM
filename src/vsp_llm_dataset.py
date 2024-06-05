@@ -512,11 +512,13 @@ class VSP_LLM_dataset(FairseqDataset):
             collated_videos = None
 
         targets_by_label = [
-            [s["label_list"][i] for s in samples] for i in range(self.num_labels)
+            [s["label_list"][i] for s in samples]
+            for i in range(self.num_labels)
         ]
 
         text_instructions = [
-            [s["text_source"][i] for s in samples] for i in range(self.num_labels)
+            [s["text_source"][i] for s in samples]
+            for i in range(self.num_labels)
         ]
 
         collated_texts, _, _ = self.collater_label(
@@ -563,6 +565,7 @@ class VSP_LLM_dataset(FairseqDataset):
             batch["target_lengths_list"] = lengths_list
             batch["ntokens_list"] = ntokens_list
             batch["target_list"] = targets_list
+
         return batch
 
     def collater_audio(self, audios, audio_size, audio_starts=None):

@@ -294,7 +294,8 @@ class avhubert_llm_seq2seq_cluster_count(BaseFairseqModel):
             results_tensor.append(mean_tensor)
             start_idx = end_idx
 
-        assert cluster_counts.sum().item() == output["encoder_out"].size()[1]
+        assert cluster_counts.sum().item() == output["encoder_out"].size()[1], \
+            f"{cluster_counts.sum().item()} != {output['encoder_out'].size()[1]}"
 
         reduced_enc_out = torch.cat(results_tensor, dim=1)
         B, T, D = reduced_enc_out.size()

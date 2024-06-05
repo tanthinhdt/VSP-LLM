@@ -798,12 +798,16 @@ class AVHubertModel(BaseFairseqModel):
                 src_audio, modality="audio"
             )  # features: [B, F, T]
             features_video = features_audio.new_zeros(
-                features_audio.size(0), self.encoder_embed_dim, features_audio.size(-1)
+                features_audio.size(0),
+                self.encoder_embed_dim,
+                features_audio.size(-1)
             )
         elif src_audio is None and src_video is not None:
             features_video = self.forward_features(src_video, modality="video")
             features_audio = features_video.new_zeros(
-                features_video.size(0), self.encoder_embed_dim, features_video.size(-1)
+                features_video.size(0),
+                self.encoder_embed_dim,
+                features_video.size(-1)
             )
         elif src_audio is not None and src_video is not None:
             features_video = self.forward_features(src_video, modality="video")
