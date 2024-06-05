@@ -8,8 +8,7 @@ import itertools
 import logging
 import os
 import sys
-import time
-from typing import Any, List, Optional, Union
+from typing import List, Optional, Union
 
 import numpy as np
 
@@ -19,7 +18,7 @@ from fairseq.data import data_utils
 from fairseq.data.fairseq_dataset import FairseqDataset
 from python_speech_features import logfbank
 from scipy.io import wavfile
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from transformers import AutoTokenizer
 
 DBG = True if len(sys.argv) == 1 else False
 
@@ -383,9 +382,9 @@ class VSP_LLM_dataset(FairseqDataset):
     def add_noise(self, clean_wav):
         clean_wav = clean_wav.astype(np.float32)
         noise_wav = self.select_noise()
-        if type(self.noise_snr) == int or type(self.noise_snr) == float:
+        if isinstance(self.noise_snr, (int, float)):
             snr = self.noise_snr
-        elif type(self.noise_snr) == tuple:
+        elif isinstance(self.noise_snr, tuple):
             snr = np.random.randint(self.noise_snr[0], self.noise_snr[1] + 1)
         clean_rms = np.sqrt(np.mean(np.square(clean_wav), axis=-1))
         if len(clean_wav) > len(noise_wav):
@@ -482,10 +481,10 @@ class VSP_LLM_dataset(FairseqDataset):
         if len(samples) == 0:
             return {}
 
-        ############# cluster_counts ############
+        # cluster_counts
         cluster_counts_source = [s["cluster_counts"] for s in samples]
 
-        ############# av_hubert ############
+        # av_hubert
         audio_source = [s["audio_source"] for s in samples]
         video_source = [s["video_source"] for s in samples]
 
@@ -625,7 +624,11 @@ class VSP_LLM_dataset(FairseqDataset):
 
         lengths = torch.LongTensor([len(t) for t in targets])
         ntokens = lengths.sum().item()
-        targets = data_utils.collate_tokens(targets, pad_idx=pad, left_pad=False)
+        targets = data_utils.collate_tokens(
+            targets,
+            pad_idx=pad,
+            left_pad=False,
+        )
         return targets, lengths, ntokens
 
     def collater_seq_label_llm(self, targets):
