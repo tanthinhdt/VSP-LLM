@@ -224,12 +224,12 @@ class VSP_LLM_dataset(FairseqDataset):
             noise_num,
         )
         self.lang_dict = {
-            "en": "English",
-            "es": "Spanish",
-            "fr": "French",
-            "it": "Italian",
-            "pt": "Portuguese",
-            "vi": "Vietnamese",
+            "en": "tiếng Anh",
+            "es": "tiếng Tây Ban Nha",
+            "fr": "tiếng Pháp",
+            "it": "tiếng Ý",
+            "pt": "tiếng Bồ Đào Nha",
+            "vi": "tiếng Việt",
         }
 
         assert self.single_target == (
@@ -431,7 +431,7 @@ class VSP_LLM_dataset(FairseqDataset):
         fid, src_lang, tgt_lang = fid.split("-")
         if src_lang == tgt_lang:
             txt_feats = self.llm_tokenizer(
-                f"Recognize this speech in {self.lang_dict[src_lang]}. Input: ",
+                f"Hãy nhận diện câu {self.lang_dict[src_lang]} này. Đầu vào: ",
                 return_tensors="pt",
             ).input_ids[0]
         else:
