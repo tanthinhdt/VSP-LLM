@@ -91,9 +91,9 @@ def create_manifest(
     output_dir: str,
 ) -> None:
     logging.info('Creating manifest...')
-
     manifest = []
     texts = []
+
     for i, sample in enumerate(split_df.itertuples()):
         logging.info(f'[{i+1}/{len(split_df)}] Processing {sample.id}')
 
