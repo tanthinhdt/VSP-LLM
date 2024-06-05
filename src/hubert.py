@@ -4,14 +4,13 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-import os, sys
+import os
+import sys
 import logging
-from typing import Dict, List, Optional, Tuple
-
 import numpy as np
-
 import torch
 import torch.nn as nn
+from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 from fairseq import utils
 from fairseq.data.data_utils import compute_mask_indices
@@ -458,10 +457,12 @@ class AVHubertModel(BaseFairseqModel):
         is_audio = True if len(x.shape) == 3 else False
 
         if is_audio:
-            mask_prob, mask_length = self.mask_prob_audio, self.mask_length_audio
+            mask_prob = self.mask_prob_audio
+            mask_length = self.mask_length_audio
         else:
-            mask_prob, mask_length = self.mask_prob_image, self.mask_length_image
-        
+            mask_prob = self.mask_prob_image
+            mask_length = self.mask_length_image
+
         if mask_prob > 0:
             mask_indices, starts, ends, batch_indexes = compute_mask_indices(
                 (B, T),
@@ -474,7 +475,7 @@ class AVHubertModel(BaseFairseqModel):
                 no_overlap=self.no_mask_overlap,
                 min_space=self.mask_min_space,
             )
-            mask_indices_np = mask_indices
+            # mask_indices_np = mask_indices
             mask_indices = torch.from_numpy(mask_indices).to(x.device)
             x = x.transpose(1, 2).contiguous()  # [B, T, C, H, W]
             if B == 1:
@@ -513,7 +514,7 @@ class AVHubertModel(BaseFairseqModel):
             mask_indices = None
 
         if self.mask_channel_prob > 0:
-            logger.info(f"No mask channel prob for input masking")
+            logger.info("No mask channel prob for input masking")
         return x, mask_indices
 
     def apply_feature_mask(self, x, padding_mask, target_list):
@@ -521,7 +522,7 @@ class AVHubertModel(BaseFairseqModel):
         assert (
             self.mask_prob_audio == self.mask_prob_image
             and self.mask_length_audio == self.mask_length_image
-        ), f"masking prob/length for image/audio be same for feature masking"
+        ), "masking prob/length for image/audio be same for feature masking"
         mask_prob, mask_length = self.mask_prob_audio, self.mask_length_image
         if mask_prob > 0:
             mask_indices, _, _, _ = compute_mask_indices(
@@ -820,7 +821,7 @@ class AVHubertModel(BaseFairseqModel):
             features = torch.cat([features_audio, features_video], dim=1)
         elif self.modality_fuse == "add":
             features = features_audio + features_video
-        features_pen = features.float().pow(2).mean()
+        # features_pen = features.float().pow(2).mean()
 
         features = features.transpose(1, 2)
         features = self.layer_norm(features)
@@ -835,7 +836,7 @@ class AVHubertModel(BaseFairseqModel):
         features = self.dropout_input(features)
         unmasked_features = self.dropout_features(unmasked_features)
         x = features
-        mask_indices = None
+        # mask_indices = None
 
         # feature: (B, T, D), float
         # target: (B, T), long
