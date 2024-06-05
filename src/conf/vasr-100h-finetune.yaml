@@ -20,8 +20,8 @@ checkpoint:
 distributed_training:
   ddp_backend: no_c10d
   find_unused_parameters: true
-  distributed_world_size: 1
-  nprocs_per_node: 1
+  distributed_world_size: 8
+  nprocs_per_node: 8
 
 task:
   _name: vsp_llm_training
@@ -41,12 +41,12 @@ task:
   llm_ckpt_path: ???
 
 dataset:
-  num_workers: 4
+  num_workers: 0
   validate_after_updates: 0
   validate_interval: 1
   train_subset: train
   valid_subset: valid
-  batch_size: 4
+  batch_size: 1
 
 criterion:
   _name: decoder_only_language_modeling_loss
