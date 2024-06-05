@@ -5,23 +5,18 @@
 # LICENSE file in the root directory of this source tree.
 
 import logging
-import os, glob
+import os
 import sys
-from typing import Dict, List, Optional, Tuple
-
 import numpy as np
-
+from typing import List, Optional, Tuple
 from dataclasses import dataclass, field
-from fairseq import metrics, search
-from fairseq.data import Dictionary, encoders
+from fairseq.data import Dictionary
 from fairseq.dataclass.configs import FairseqDataclass
 from fairseq.tasks import register_task
 from fairseq.tasks.fairseq_task import FairseqTask
 from omegaconf import MISSING, II
-import numpy as np
-from argparse import Namespace
 
-DBG=True if len(sys.argv) == 1 else False
+DBG = True if len(sys.argv) == 1 else False
 
 if DBG:
     from vsp_llm_dataset import VSP_LLM_dataset
@@ -30,13 +25,10 @@ else:
 
 logger = logging.getLogger(__name__)
 
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
 @dataclass
 class VSP_LLM_TrainingConfig(FairseqDataclass):
-    data: str = field(
-        default=MISSING, metadata={"help": "path to data directory"}
-    )
+    data: str = field(default=MISSING, metadata={"help": "path to data directory"})
     labels: List[str] = field(
         default_factory=lambda: ["ltr"],
         metadata={
@@ -69,9 +61,7 @@ class VSP_LLM_TrainingConfig(FairseqDataclass):
     )
     normalize: bool = field(
         default=False,
-        metadata={
-            "help": "if set, normalizes input to have 0 mean and unit variance"
-        },
+        metadata={"help": "if set, normalizes input to have 0 mean and unit variance"},
     )
     enable_padding: bool = field(
         default=False,
@@ -92,8 +82,7 @@ class VSP_LLM_TrainingConfig(FairseqDataclass):
     single_target: Optional[bool] = field(
         default=False,
         metadata={
-            "help": "if set, AddTargetDatasets outputs same keys "
-            "as AddTargetDataset"
+            "help": "if set, AddTargetDatasets outputs same keys " "as AddTargetDataset"
         },
     )
     random_crop: Optional[bool] = field(
@@ -116,22 +105,36 @@ class VSP_LLM_TrainingConfig(FairseqDataclass):
         default=False,
         metadata={"help": "skip verifying label-audio alignment"},
     )
-    image_aug: bool = field(default=False, metadata={'help': 'image data augmentation'})
-    image_crop_size: int = field(
-        default=88, metadata={"help": "image ROI size"})
-    image_mean: float = field(
-        default=0.421, metadata={"help": "image mean"})
-    image_std: float = field(
-        default=0.165, metadata={"help": "image std"})
-    modalities: Optional[List[str]] = field(default_factory=lambda: ["audio", "video"], metadata={'help': 'modalities to load'})
-    is_s2s: bool=field(default=False, metadata={'help': 'seq2seq fine-tuning only'})
-    tokenizer_bpe_name: Optional[str] = field(default=None, metadata={'help': 'tokenizer model name'})
-    tokenizer_bpe_model: Optional[str] = field(default=None, metadata={'help': 'tokenizer model path'})
-    noise_wav: Optional[str] = field(default=None, metadata={'help': 'manifest of noise wav files (one wav file path per line)'})
-    noise_prob: float = field(default=0, metadata={'help': 'noise probability'})
-    noise_snr: Optional[str] = field(default='0', metadata={'help': 'noise SNR in audio'})
-    noise_num: int = field(default=1, metadata={'help': 'number of noise wav files to mix'})
-    fine_tuning: bool = field(default=False, metadata={"help": "set to true if fine-tuning AV-Hubert"})
+    image_aug: bool = field(default=False, metadata={"help": "image data augmentation"})
+    image_crop_size: int = field(default=88, metadata={"help": "image ROI size"})
+    image_mean: float = field(default=0.421, metadata={"help": "image mean"})
+    image_std: float = field(default=0.165, metadata={"help": "image std"})
+    modalities: Optional[List[str]] = field(
+        default_factory=lambda: ["audio", "video"],
+        metadata={"help": "modalities to load"},
+    )
+    is_s2s: bool = field(default=False, metadata={"help": "seq2seq fine-tuning only"})
+    tokenizer_bpe_name: Optional[str] = field(
+        default=None, metadata={"help": "tokenizer model name"}
+    )
+    tokenizer_bpe_model: Optional[str] = field(
+        default=None, metadata={"help": "tokenizer model path"}
+    )
+    noise_wav: Optional[str] = field(
+        default=None,
+        metadata={"help": "manifest of noise wav files (one wav file path per line)"},
+    )
+    noise_prob: float = field(default=0, metadata={"help": "noise probability"})
+    noise_snr: Optional[str] = field(
+        default="0", metadata={"help": "noise SNR in audio"}
+    )
+    noise_num: int = field(
+        default=1, metadata={"help": "number of noise wav files to mix"}
+    )
+    fine_tuning: bool = field(
+        default=False, metadata={"help": "set to true if fine-tuning AV-Hubert"}
+    )
+
 
 @register_task("vsp_llm_training", dataclass=VSP_LLM_TrainingConfig)
 class VSP_LLM_TrainingTask(FairseqTask):
@@ -147,8 +150,9 @@ class VSP_LLM_TrainingTask(FairseqTask):
         logger.info(f"current directory is {os.getcwd()}")
         logger.info(f"AVHubertPretrainingTask Config {cfg}")
 
-        self.fine_tuning = cfg.fine_tuning    
+        self.fine_tuning = cfg.fine_tuning
         self.blank_symbol = "<s>"
+
     @property
     def source_dictionary(self) -> Optional[Dictionary]:
         return None
@@ -156,7 +160,7 @@ class VSP_LLM_TrainingTask(FairseqTask):
     @property
     def target_dictionary(self) -> Optional[Dictionary]:
         return None
-    
+
     @property
     def dictionaries(self) -> List[Dictionary]:
         return None
@@ -167,6 +171,7 @@ class VSP_LLM_TrainingTask(FairseqTask):
     ) -> "Avhubert_Llama_Cluster_Trans_PretrainingTask":
         if cfg.pdb:
             import pdb
+
             pdb.set_trace()
         return cls(cfg)
 
@@ -176,15 +181,16 @@ class VSP_LLM_TrainingTask(FairseqTask):
         return self.cfg.label_dir
 
     def load_dataset(self, split: str, **kwargs) -> None:
-
         manifest = f"{self.cfg.data}/{split}.tsv"
-        logger.info(f"Using tokenizer")
-        paths = [
-            f"{self.get_label_dir()}/{split}.{l}" for l in self.cfg.labels
-        ]
-        image_aug = self.cfg.image_aug if split == 'train' else False
-        noise_fn, noise_snr = f"{self.cfg.noise_wav}/{split}.tsv" if self.cfg.noise_wav is not None else None, eval(self.cfg.noise_snr)
-        noise_num = self.cfg.noise_num # 
+        logger.info("Using tokenizer")
+        paths = [f"{self.get_label_dir()}/{split}.{l}" for l in self.cfg.labels]
+        image_aug = self.cfg.image_aug if split == "train" else False
+        noise_fn, noise_snr = (
+            f"{self.cfg.noise_wav}/{split}.tsv"
+            if self.cfg.noise_wav is not None
+            else None
+        ), eval(self.cfg.noise_snr)
+        noise_num = self.cfg.noise_num  #
         self.datasets[split] = VSP_LLM_dataset(
             manifest,
             sample_rate=self.cfg.sample_rate,
@@ -210,13 +216,11 @@ class VSP_LLM_TrainingTask(FairseqTask):
             noise_fn=noise_fn,
             noise_prob=self.cfg.noise_prob,
             noise_snr=noise_snr,
-            noise_num=noise_num
+            noise_num=noise_num,
         )
 
     def max_positions(self) -> Tuple[int, int]:
         return (sys.maxsize, sys.maxsize)
 
-    def filter_indices_by_size(
-        self, indices: np.array, *args, **kwargs
-    ) -> np.array:
+    def filter_indices_by_size(self, indices: np.array, *args, **kwargs) -> np.array:
         return indices
