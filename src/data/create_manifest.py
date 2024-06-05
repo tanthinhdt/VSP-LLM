@@ -2,6 +2,7 @@ import os
 import argparse
 import logging
 import pandas as pd
+from datasets import Dataset
 
 
 logging.basicConfig(
@@ -40,10 +41,10 @@ def get_args() -> argparse.Namespace:
         help='Target language.'
     )
     parser.add_argument(
-        '--num-samples',
-        type=int,
+        '--frac',
+        type=float,
         default=-1,
-        help='Number of samples to get. Default is -1 to get all data.'
+        help="Proportion to get. Default is 1 to get all data."
     )
     parser.add_argument(
         '--output-dir',
@@ -54,12 +55,38 @@ def get_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def filter(
+    sample: dict,
+    split: str,
+    data_dir: str,
+):
+    rel_visual_path = os.path.join(
+        'visual',
+        split + '_' + str(sample["shard"]).zfill(4),
+        f'{sample["id"]}.mp4',
+    )
+    visual_path = os.path.join(data_dir, rel_visual_path)
+    if not os.path.exists(visual_path):
+        return False
+
+    rel_audio_path = os.path.join(
+        'audio',
+        split + '_' + str(sample["shard"]).zfill(4),
+        f'{sample["id"]}.wav',
+    )
+    audio_path = os.path.join(data_dir, rel_audio_path)
+    if not os.path.exists(audio_path):
+        logging.error(f'File {audio_path} does not exist.')
+        return False
+
+    return True
+
+
 def create_manifest(
     split: str,
     split_df: pd.DataFrame,
     src_lang: str,
     dst_lang: str,
-    num_samples: int,
     data_dir: str,
     output_dir: str,
 ) -> None:
@@ -67,11 +94,7 @@ def create_manifest(
 
     manifest = []
     texts = []
-    count = 0
     for i, sample in enumerate(split_df.itertuples()):
-        if count == num_samples:
-            logging.info(f'Get enough {num_samples}')
-            break
         logging.info(f'[{i+1}/{len(split_df)}] Processing {sample.id}')
 
         rel_visual_path = os.path.join(
@@ -104,7 +127,6 @@ def create_manifest(
             ])
         )
         texts.append(sample.transcript)
-        count += 1
 
     with open(os.path.join(output_dir, f'{split}.tsv'), 'w') as f:
         f.write(data_dir + '\n')
@@ -128,19 +150,51 @@ def main(args: argparse.Namespace) -> None:
         return
     os.makedirs(args.output_dir, exist_ok=True)
 
+    mapping_df = pd.read_json(
+        os.path.join(args.data_dir, "mapping.json"),
+        dtype={
+            "id": "string",
+            "shard": "int",
+            "channel": "string",
+            "video": "string",
+            "split": "string",
+        }
+    )
+
     split_df = pd.read_parquet(metadata_path)
     logging.info(f'Found {len(split_df)} ids.')
 
-    if not (0 <= args.num_samples <= len(split_df)):
-        args.num_samples = len(split_df)
-    logging.info(f'Get {args.num_samples} samples')
+    split_df = pd.merge(
+        split_df, mapping_df,
+        how='left',
+        on=['id', 'shard'],
+    )
+    split_df = (
+        Dataset
+        .from_pandas(split_df)
+        .filter(
+            filter,
+            fn_kwargs={"split": args.split, "data_dir": args.data_dir},
+            num_proc=10,
+        )
+        .to_pandas()
+    )
+    logging.info(f'Get {len(split_df)} after filtering')
+
+    if not (0 <= args.frac <= 1):
+        args.frac = 1
+    split_df = (
+        split_df
+        .groupby("channel", group_keys=False)
+        .apply(lambda x: x.sample(frac=args.frac))
+    )
+    logging.info(f"Stratified sampling {len(split_df)} samples")
 
     create_manifest(
         split=args.split,
         split_df=split_df,
         src_lang=args.src_lang,
         dst_lang=args.dst_lang,
-        num_samples=args.num_samples,
         data_dir=args.data_dir,
         output_dir=args.output_dir,
     )
