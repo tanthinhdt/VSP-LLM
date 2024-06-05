@@ -152,25 +152,6 @@ class HubertEncoderWrapper(FairseqEncoder):
         super().__init__(None)
         self.w2v_model = w2v_model
 
-    def forward_(self, source, padding_mask, **kwargs):
-        src = {}
-        src["video"] = source
-        src["audio"] = None
-        w2v_args = {
-            "source": src,
-            "padding_mask": padding_mask,
-        }
-
-        x, padding_mask = self.w2v_model.extract_finetune(**w2v_args)
-        # B x T x C -> T x B x C
-        x = x.transpose(0, 1)
-
-        return {
-            "encoder_out": x,  # T x B x C
-            "encoder_padding_mask": padding_mask,  # B x T
-            "padding_mask": padding_mask,
-        }
-
     def forward(self, source, padding_mask, **kwargs):
         w2v_args = {
             "source": source,
