@@ -12,7 +12,10 @@ from fairseq.criterions import FairseqCriterion, register_criterion
 from fairseq.dataclass import FairseqDataclass
 
 
-@register_criterion("decoder_only_language_modeling_loss", dataclass=FairseqDataclass)
+@register_criterion(
+    "decoder_only_language_modeling_loss",
+    dataclass=FairseqDataclass,
+)
 class decoder_only_language_modeling_loss(FairseqCriterion):
     def __init__(self, task):
         super().__init__(task)
@@ -90,7 +93,7 @@ class decoder_only_language_modeling_loss(FairseqCriterion):
         metrics.log_scalar(
             "loss", loss_sum / sample_size / math.log(2), sample_size, round=3
         )
-
+        metrics.log_scalar("ntokens", ntokens)
         metrics.log_derived(
             "ppl", lambda meters: utils.get_perplexity(meters["loss"].avg)
         )
