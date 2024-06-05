@@ -5,11 +5,11 @@
 # LICENSE file in the root directory of this source tree.
 
 import logging
-from argparse import Namespace
-from typing import Any
 import torch
 import contextlib
 import torch.nn as nn
+from typing import Any
+from argparse import Namespace
 from transformers import AutoModelForCausalLM, BitsAndBytesConfig
 from peft import LoraConfig, get_peft_model
 from dataclasses import dataclass, field
@@ -282,7 +282,6 @@ class avhubert_llm_seq2seq_cluster_count(BaseFairseqModel):
             output = self.encoder(**kwargs)
 
         output["encoder_out"] = self.avfeat_to_llm(output["encoder_out"])
-
         cluster_counts = kwargs["source"]["cluster_counts"][0]  # tensor list
 
         results_tensor = []
