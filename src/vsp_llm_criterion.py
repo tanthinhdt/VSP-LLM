@@ -5,16 +5,11 @@
 # LICENSE file in the root directory of this source tree.
 
 import math
-import re
-from dataclasses import dataclass, field
-from typing import List, Optional
-
 import torch
-import torch.nn.functional as F
+import editdistance
 from fairseq import metrics, utils
 from fairseq.criterions import FairseqCriterion, register_criterion
 from fairseq.dataclass import FairseqDataclass
-import editdistance
 
 
 @register_criterion("decoder_only_language_modeling_loss", dataclass=FairseqDataclass)
@@ -45,9 +40,13 @@ class decoder_only_language_modeling_loss(FairseqCriterion):
             "sample_size": sample_size,
         }
 
-        n_correct, total = self.compute_accuracy(lprobs, sample)
+        n_correct, acc_total = self.compute_accuracy(lprobs, sample)
         logging_output["n_correct"] = utils.item(n_correct.data)
-        logging_output["total"] = utils.item(total.data)
+        logging_output["acc_total"] = utils.item(acc_total.data)
+
+        n_error, wer_total = self.compute_wer(lprobs, sample)
+        logging_output["n_error"] = utils.item(n_error.data)
+        logging_output["wer_total"] = utils.item(wer_total.data)
 
         return loss, sample_size, logging_output
 
@@ -68,6 +67,18 @@ class decoder_only_language_modeling_loss(FairseqCriterion):
 
         return n_correct, total
 
+    def compute_wer(self, lprobs, sample):
+        target = sample["net_input"]["prev_output_tokens"]
+        b, t = target.size()
+        mask = sample["target_attn_mask"] == 1
+
+        hyp = lprobs[:, -t:].argmax(2).masked_select(mask).cpu().tolist()
+        ref = target.masked_select(mask).cpu().tolist()
+        n_error = torch.tensor(editdistance.eval(hyp, ref))
+        total = torch.sum(mask)
+
+        return n_error, total
+
     @staticmethod
     def reduce_metrics(logging_outputs) -> None:
         """Aggregate logging outputs from data parallel training."""
@@ -84,9 +95,11 @@ class decoder_only_language_modeling_loss(FairseqCriterion):
             "ppl", lambda meters: utils.get_perplexity(meters["loss"].avg)
         )
 
-        total = utils.item(sum(log.get("total", 0) for log in logging_outputs))
-        if total > 0:
-            metrics.log_scalar("total", total)
+        acc_total = utils.item(
+            sum(log.get("acc_total", 0) for log in logging_outputs)
+        )
+        if acc_total > 0:
+            metrics.log_scalar("acc_total", acc_total)
             n_correct = utils.item(
                 sum(log.get("n_correct", 0) for log in logging_outputs)
             )
@@ -94,8 +107,26 @@ class decoder_only_language_modeling_loss(FairseqCriterion):
             metrics.log_derived(
                 "accuracy",
                 lambda meters: (
-                    round(meters["n_correct"].sum * 100.0 / meters["total"].sum, 3)
-                    if meters["total"].sum > 0
+                    round(meters["n_correct"].sum * 100.0 / meters["acc_total"].sum, 3)
+                    if meters["acc_total"].sum > 0
+                    else float("nan")
+                ),
+            )
+
+        wer_total = utils.item(
+            sum(log.get("wer_total", 0) for log in logging_outputs)
+        )
+        if wer_total > 0:
+            metrics.log_scalar("wer_total", wer_total)
+            n_error = utils.item(
+                sum(log.get("n_error", 0) for log in logging_outputs)
+            )
+            metrics.log_scalar("n_error", n_error)
+            metrics.log_derived(
+                "wer",
+                lambda meters: (
+                    round(meters["n_error"].sum * 100.0 / meters["wer_total"].sum, 3)
+                    if meters["wer_total"].sum > 0
                     else float("nan")
                 ),
             )
