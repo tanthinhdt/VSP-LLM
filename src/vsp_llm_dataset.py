@@ -505,6 +505,8 @@ class VSP_LLM_dataset(FairseqDataset):
             audio_size = min(min(audio_sizes), self.max_sample_size)
 
         if audio_source is not None:
+            if video_source is None:
+                audio_size = cluster_counts_source[0].sum().item()
             collated_audios, padding_mask, audio_starts = self.collater_audio(
                 audio_source, audio_size
             )
