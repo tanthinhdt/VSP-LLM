@@ -318,14 +318,16 @@ class VSP_LLM_dataset(FairseqDataset):
             return feats
 
         video_fn, audio_fn = mix_name
+
         if "video" in self.modalities:
             video_feats = self.load_video(video_fn)  # [T, H, W, 1]
         else:
             video_feats = None
+
         if "audio" in self.modalities:
-            audio_fn = audio_fn.split(":")[0]
+            audio_fn = os.path.join(self.audio_root, audio_fn.split(":")[0])
             audio_npy = audio_fn.replace(".wav", ".npy")
-            if os.path.exists(audio_npy) == False:
+            if not os.path.exists(audio_npy):
                 sample_rate, wav_data = wavfile.read(audio_fn)
                 assert sample_rate == 16_000 and len(wav_data.shape) == 1
                 audio_feats = logfbank(wav_data, samplerate=sample_rate).astype(
@@ -337,9 +339,9 @@ class VSP_LLM_dataset(FairseqDataset):
                 np.save(audio_npy[:-4], audio_feats)
             else:
                 audio_feats = np.load(audio_npy)
-
         else:
             audio_feats = None
+
         if audio_feats is not None and video_feats is not None:
             diff = len(audio_feats) - len(video_feats)
             if diff < 0:
@@ -477,27 +479,31 @@ class VSP_LLM_dataset(FairseqDataset):
         cluster_counts_source = [s["cluster_counts"] for s in samples]
 
         ############# av_hubert ############
-        audio_source, video_source = [s["audio_source"] for s in samples], [
-            s["video_source"] for s in samples
-        ]
+        audio_source = [s["audio_source"] for s in samples]
+        video_source = [s["video_source"] for s in samples]
+
         if audio_source[0] is None:
             audio_source = None
         if video_source[0] is None:
             video_source = None
+
         if audio_source is not None:
             audio_sizes = [len(s) for s in audio_source]
         else:
             audio_sizes = [len(s) for s in video_source]
+
         if self.pad_audio:
             audio_size = min(max(audio_sizes), self.max_sample_size)
         else:
             audio_size = min(min(audio_sizes), self.max_sample_size)
+
         if audio_source is not None:
             collated_audios, padding_mask, audio_starts = self.collater_audio(
                 audio_source, audio_size
             )
         else:
             collated_audios, audio_starts = None, None
+
         if video_source is not None:
             collated_videos, padding_mask, audio_starts = self.collater_audio(
                 video_source, audio_size, audio_starts
