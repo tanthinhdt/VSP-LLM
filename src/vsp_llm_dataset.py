@@ -576,6 +576,7 @@ class VSP_LLM_dataset(FairseqDataset):
         padding_mask = torch.BoolTensor(len(audios), audio_size).fill_(False)  #
         start_known = audio_starts is not None
         audio_starts = [0 for _ in audios] if not start_known else audio_starts
+
         for i, audio in enumerate(audios):
             diff = len(audio) - audio_size
             if diff == 0:
@@ -590,12 +591,14 @@ class VSP_LLM_dataset(FairseqDataset):
                 collated_audios[i], audio_starts[i] = self.crop_to_max_size(
                     audio, audio_size, audio_starts[i] if start_known else None
                 )
+
         if len(audios[0].shape) == 2:
             collated_audios = collated_audios.transpose(1, 2)  # [B, T, F] -> [B, F, T]
         else:
             collated_audios = collated_audios.permute(
                 (0, 4, 1, 2, 3)
             ).contiguous()  # [B, T, H, W, C] -> [B, C, T, H, W]
+
         return collated_audios, padding_mask, audio_starts
 
     def collater_frm_label(self, targets, audio_size, audio_starts, label_rate, pad):

@@ -456,12 +456,13 @@ class AVHubertModel(BaseFairseqModel):
     def apply_input_mask(self, x, padding_mask, target_list):
         B, C, T = x.shape[:3]
         is_audio = True if len(x.shape) == 3 else False
+
         if is_audio:
             mask_prob, mask_length = self.mask_prob_audio, self.mask_length_audio
         else:
             mask_prob, mask_length = self.mask_prob_image, self.mask_length_image
+        
         if mask_prob > 0:
-
             mask_indices, starts, ends, batch_indexes = compute_mask_indices(
                 (B, T),
                 padding_mask,
