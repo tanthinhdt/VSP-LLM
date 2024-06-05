@@ -349,16 +349,20 @@ class VSP_LLM_dataset(FairseqDataset):
                     [
                         audio_feats,
                         np.zeros(
-                            [-diff, audio_feats.shape[-1]], dtype=audio_feats.dtype
+                            [-diff, audio_feats.shape[-1]],
+                            dtype=audio_feats.dtype
                         ),
                     ]
                 )
             elif diff > 0:
                 audio_feats = audio_feats[:-diff]
+
         return video_feats, audio_feats
 
     def load_video(self, audio_name):
-        feats = custom_utils.load_video(os.path.join(self.audio_root, audio_name))
+        feats = custom_utils.load_video(
+            os.path.join(self.audio_root, audio_name)
+        )
         feats = self.transform(feats)
         feats = np.expand_dims(feats, axis=-1)
         return feats
@@ -409,18 +413,21 @@ class VSP_LLM_dataset(FairseqDataset):
 
     def __getitem__(self, index):
         video_feats, audio_feats = self.load_feature(self.names[index])
-        audio_feats, video_feats = (
+        audio_feats = (
             torch.from_numpy(audio_feats.astype(np.float32))
             if audio_feats is not None
             else None
-        ), (
+        )
+        video_feats = (
             torch.from_numpy(video_feats.astype(np.float32))
             if video_feats is not None
             else None
         )
+
         if self.normalize and "audio" in self.modalities:
             with torch.no_grad():
                 audio_feats = F.layer_norm(audio_feats, audio_feats.shape[1:])
+
         cluster_counts = self.load_units(index)
         labels = [
             self.llm_tokenizer(
