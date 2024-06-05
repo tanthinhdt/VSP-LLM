@@ -23,19 +23,19 @@ from omegaconf import II, MISSING
 logger = logging.getLogger(__name__)
 
 
-MASKING_DISTRIBUTION_CHOICES = ChoiceEnum([
-    "static",
-    "uniform",
-    "normal",
-    "poisson",
-])
+MASKING_DISTRIBUTION_CHOICES = ChoiceEnum(
+    [
+        "static",
+        "uniform",
+        "normal",
+        "poisson",
+    ]
+)
 
 
 @dataclass
 class VSPLLMConfig(FairseqDataclass):
-    w2v_path: str = field(
-        default=MISSING, metadata={"help": "path to hubert model"}
-    )
+    w2v_path: str = field(default=MISSING, metadata={"help": "path to hubert model"})
     llm_ckpt_path: str = field(
         default=MISSING, metadata={"help": "path to llama model"}
     )
@@ -45,15 +45,11 @@ class VSPLLMConfig(FairseqDataclass):
     )
     dropout_input: float = field(
         default=0.0,
-        metadata={
-            "help": "dropout to apply to the input (after feat extr)"
-        },
+        metadata={"help": "dropout to apply to the input (after feat extr)"},
     )
     final_dropout: float = field(
         default=0.0,
-        metadata={
-            "help": "dropout after transformer and before final projection"
-        },
+        metadata={"help": "dropout after transformer and before final projection"},
     )
     dropout: float = field(
         default=0.0,
@@ -61,15 +57,11 @@ class VSPLLMConfig(FairseqDataclass):
     )
     attention_dropout: float = field(
         default=0.0,
-        metadata={
-            "help": "dropout probability for attention weights inside hubert"
-        },
+        metadata={"help": "dropout probability for attention weights inside hubert"},
     )
     activation_dropout: float = field(
         default=0.0,
-        metadata={
-            "help": "dropout probability after activation in FFN inside hubert"
-        },
+        metadata={"help": "dropout probability after activation in FFN inside hubert"},
     )
 
     # masking
@@ -216,7 +208,8 @@ class avhubert_llm_seq2seq_cluster_count(BaseFairseqModel):
         self.cfg = cfg
         self.encoder = encoder
         self.decoder = decoder
-        self.avfeat_to_llm = nn.Linear(1024, 4096)
+        # self.avfeat_to_llm = nn.Linear(1024, 4096)
+        self.avfeat_to_llm = nn.Linear(1024, 2560)
         self.freeze_finetune_updates = cfg.freeze_finetune_updates
 
     @classmethod
@@ -243,9 +236,7 @@ class avhubert_llm_seq2seq_cluster_count(BaseFairseqModel):
         }
 
         if cfg.w2v_args is None:
-            state = checkpoint_utils.load_checkpoint_to_cpu(
-                cfg.w2v_path, arg_overrides
-            )
+            state = checkpoint_utils.load_checkpoint_to_cpu(cfg.w2v_path, arg_overrides)
             w2v_args = state.get("cfg", None)
             if w2v_args is None:
                 w2v_args = convert_namespace_to_omegaconf(state["args"])
@@ -326,6 +317,7 @@ class avhubert_llm_seq2seq_cluster_count(BaseFairseqModel):
 
         reduced_enc_out = torch.cat(results_tensor, dim=1)
         B, T, D = reduced_enc_out.size()
+
         instruction = kwargs["source"]["text"]
         instruction_embedding = self.decoder.model.model.embed_tokens(instruction)
 

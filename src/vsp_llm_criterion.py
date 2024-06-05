@@ -57,7 +57,12 @@ class decoder_only_language_modeling_loss(FairseqCriterion):
         b, t = target.size()
         mask = sample["target_attn_mask"] == 1
         n_correct = torch.sum(
-            lprobs[:, -t:].argmax(2).masked_select(mask).eq(target.masked_select(mask))
+            (
+                lprobs[:, -t:]
+                .argmax(2)
+                .masked_select(mask)
+                .eq(target.masked_select(mask))
+            )
         )
         total = torch.sum(mask)
 
