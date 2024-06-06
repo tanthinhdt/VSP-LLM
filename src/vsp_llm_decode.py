@@ -204,14 +204,15 @@ def _main(cfg, output_file):
     wps_meter = TimeMeter()
     result_dict = {"utt_id": [], "ref": [], "hypo": [], "instruction": []}
     model = models[0]
+
     for sample in progress:
         sample = utils.move_to_cuda(sample) if use_cuda else sample
         if "net_input" not in sample:
             continue
 
-        sample["net_input"]["source"]["video"] = sample["net_input"]["source"][
-            "video"
-        ].to(torch.half)
+        sample["net_input"]["source"]["video"] = (
+            sample["net_input"]["source"]["video"].to(torch.half)
+        )
         best_hypo = model.generate(
             target_list=sample["target"],
             num_beams=cfg.generation.beam,
@@ -219,7 +220,9 @@ def _main(cfg, output_file):
             **sample["net_input"],
         )
         best_hypo = tokenizer.batch_decode(
-            best_hypo, skip_special_tokens=True, clean_up_tokenization_spaces=False
+            best_hypo,
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=False,
         )
         for i in range(len(sample["id"])):
             result_dict["utt_id"].append(sample["utt_id"][i])
