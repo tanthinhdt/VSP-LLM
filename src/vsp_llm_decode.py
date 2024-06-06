@@ -172,7 +172,8 @@ def _main(cfg, output_file):
         max_tokens=cfg.dataset.max_tokens,
         max_sentences=cfg.dataset.batch_size,
         max_positions=utils.resolve_max_positions(
-            task.max_positions(), *[m.max_positions() for m in models]
+            task.max_positions(),
+            *[m.max_positions() for m in models]
         ),
         ignore_invalid_inputs=cfg.dataset.skip_invalid_size_inputs_valid_test,
         required_batch_size_multiple=cfg.dataset.required_batch_size_multiple,
@@ -225,7 +226,9 @@ def _main(cfg, output_file):
             clean_up_tokenization_spaces=False,
         )
         for i in range(len(sample["id"])):
-            result_dict["utt_id"].append(sample["utt_id"][i])
+            utt_id = sample["utt_id"][i]
+            result_dict["utt_id"].append(utt_id)
+
             target = sample["target"][i].masked_fill(sample["target"][i] == -100, 0)
             ref_sent = tokenizer.decode(
                 target.int().cpu(),
@@ -233,21 +236,30 @@ def _main(cfg, output_file):
                 clean_up_tokenization_spaces=False,
             )
             result_dict["ref"].append(ref_sent)
+
             hypo_str = best_hypo[i]
+            result_dict["hypo"].append(hypo_str)
+
             instruction = tokenizer.decode(
                 sample["net_input"]["source"]["text"][i].int().cpu(),
                 skip_special_tokens=True,
                 clean_up_tokenization_spaces=False,
             )
             result_dict["instruction"].append(instruction)
-            result_dict["hypo"].append(hypo_str)
-            logger.info(f"\nINST:{instruction}\nREF:{ref_sent}\nHYP:{hypo_str}\n")
+
+            wer = editdistance.eval(hypo_str, ref_sent) * 100 / len(ref_sent)
+            result = (
+                "\nID: {0}\nINST: {1}\nREF: {2}\nHYP: {3}\nWER: {4:.2f}"
+                .format(utt_id, instruction, ref_sent, hypo_str, wer)
+            )
+            logger.info(result)
 
     yaml_str = OmegaConf.to_yaml(cfg.generation)
     fid = int(hashlib.md5(yaml_str.encode("utf-8")).hexdigest(), 16)
     fid = fid % 1000000
     result_fn = f"{cfg.common_eval.results_path}/hypo-{fid}.json"
     json.dump(result_dict, open(result_fn, "w"), indent=4)
+
     if not cfg.override.eval_bleu:
         n_err, n_total = 0, 0
         assert len(result_dict["hypo"]) == len(result_dict["ref"])
