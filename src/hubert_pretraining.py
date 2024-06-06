@@ -21,7 +21,7 @@ from omegaconf import MISSING, II
 import numpy as np
 from argparse import Namespace
 
-DBG=True if len(sys.argv) == 1 else False
+DBG = True if len(sys.argv) == 1 else False
 
 if DBG:
     from hubert_dataset import AVHubertDataset
@@ -39,8 +39,11 @@ class LabelEncoder(object):
 
     def __call__(self, label: str) -> List[str]:
         return self.dictionary.encode_line(
-            label, append_eos=False, add_if_not_exist=False,
+            label,
+            append_eos=False,
+            add_if_not_exist=False,
         )
+
 
 class LabelEncoderS2SToken(object):
     def __init__(self, dictionary: Dictionary, bpe_tokenizer) -> None:
@@ -50,7 +53,9 @@ class LabelEncoderS2SToken(object):
     def __call__(self, label: str) -> List[str]:
         label = self.bpe_tokenizer.encode(label.lower())
         return self.dictionary.encode_line(
-            label, append_eos=True, add_if_not_exist=False,
+            label,
+            append_eos=True,
+            add_if_not_exist=False,
         ).long()
 
     def decode(self, tok, symbols_ignore=None):
@@ -59,11 +64,10 @@ class LabelEncoderS2SToken(object):
             tok = self.bpe_tokenizer.decode(tok)
         return tok
 
+
 @dataclass
 class AVHubertPretrainingConfig(FairseqDataclass):
-    data: str = field(
-        default=MISSING, metadata={"help": "path to data directory"}
-    )
+    data: str = field(default=MISSING, metadata={"help": "path to data directory"})
     labels: List[str] = field(
         default_factory=lambda: ["ltr"],
         metadata={
@@ -93,9 +97,7 @@ class AVHubertPretrainingConfig(FairseqDataclass):
     )
     normalize: bool = field(
         default=False,
-        metadata={
-            "help": "if set, normalizes input to have 0 mean and unit variance"
-        },
+        metadata={"help": "if set, normalizes input to have 0 mean and unit variance"},
     )
     enable_padding: bool = field(
         default=False,
@@ -116,8 +118,7 @@ class AVHubertPretrainingConfig(FairseqDataclass):
     single_target: Optional[bool] = field(
         default=False,
         metadata={
-            "help": "if set, AddTargetDatasets outputs same keys "
-            "as AddTargetDataset"
+            "help": "if set, AddTargetDatasets outputs same keys " "as AddTargetDataset"
         },
     )
     random_crop: Optional[bool] = field(
@@ -140,22 +141,36 @@ class AVHubertPretrainingConfig(FairseqDataclass):
         default=False,
         metadata={"help": "skip verifying label-audio alignment"},
     )
-    image_aug: bool = field(default=False, metadata={'help': 'image data augmentation'})
-    image_crop_size: int = field(
-        default=88, metadata={"help": "image ROI size"})
-    image_mean: float = field(
-        default=0.421, metadata={"help": "image mean"})
-    image_std: float = field(
-        default=0.165, metadata={"help": "image std"})
-    modalities: Optional[List[str]] = field(default_factory=lambda: ["audio", "video"], metadata={'help': 'modalities to load'})
-    is_s2s: bool=field(default=False, metadata={'help': 'seq2seq fine-tuning only'})
-    tokenizer_bpe_name: Optional[str] = field(default=None, metadata={'help': 'tokenizer model name'})
-    tokenizer_bpe_model: Optional[str] = field(default=None, metadata={'help': 'tokenizer model path'})
-    noise_wav: Optional[str] = field(default=None, metadata={'help': 'manifest of noise wav files (one wav file path per line)'})
-    noise_prob: float = field(default=0, metadata={'help': 'noise probability'})
-    noise_snr: Optional[str] = field(default='0', metadata={'help': 'noise SNR in audio'})
-    noise_num: int = field(default=1, metadata={'help': 'number of noise wav files to mix'})
-    fine_tuning: bool = field(default=False, metadata={"help": "set to true if fine-tuning AV-Hubert"})
+    image_aug: bool = field(default=False, metadata={"help": "image data augmentation"})
+    image_crop_size: int = field(default=88, metadata={"help": "image ROI size"})
+    image_mean: float = field(default=0.421, metadata={"help": "image mean"})
+    image_std: float = field(default=0.165, metadata={"help": "image std"})
+    modalities: Optional[List[str]] = field(
+        default_factory=lambda: ["audio", "video"],
+        metadata={"help": "modalities to load"},
+    )
+    is_s2s: bool = field(default=False, metadata={"help": "seq2seq fine-tuning only"})
+    tokenizer_bpe_name: Optional[str] = field(
+        default=None, metadata={"help": "tokenizer model name"}
+    )
+    tokenizer_bpe_model: Optional[str] = field(
+        default=None, metadata={"help": "tokenizer model path"}
+    )
+    noise_wav: Optional[str] = field(
+        default=None,
+        metadata={"help": "manifest of noise wav files (one wav file path per line)"},
+    )
+    noise_prob: float = field(default=0, metadata={"help": "noise probability"})
+    noise_snr: Optional[str] = field(
+        default="0", metadata={"help": "noise SNR in audio"}
+    )
+    noise_num: int = field(
+        default=1, metadata={"help": "number of noise wav files to mix"}
+    )
+    fine_tuning: bool = field(
+        default=False, metadata={"help": "set to true if fine-tuning AV-Hubert"}
+    )
+
 
 @register_task("av_hubert_pretraining", dataclass=AVHubertPretrainingConfig)
 class AVHubertPretrainingTask(FairseqTask):
@@ -183,11 +198,11 @@ class AVHubertPretrainingTask(FairseqTask):
 
     @property
     def source_dictionary(self) -> Optional[Dictionary]:
-        return None # self._source_dictionary
+        return None  # self._source_dictionary
 
     @property
     def target_dictionary(self) -> Optional[Dictionary]:
-        return self.state.target_dictionary # self._target_dictionary
+        return self.state.target_dictionary  # self._target_dictionary
 
     @property
     def dictionaries(self) -> List[Dictionary]:
@@ -202,7 +217,12 @@ class AVHubertPretrainingTask(FairseqTask):
         return dictionaries[0] if self.cfg.fine_tuning else dictionaries
 
     def load_tokenizer(self):
-        bpe_args = Namespace(**{'bpe': self.cfg.tokenizer_bpe_name, f"{self.cfg.tokenizer_bpe_name}_model": self.cfg.tokenizer_bpe_model})
+        bpe_args = Namespace(
+            **{
+                "bpe": self.cfg.tokenizer_bpe_name,
+                f"{self.cfg.tokenizer_bpe_name}_model": self.cfg.tokenizer_bpe_model,
+            }
+        )
         bpe_tokenizer = encoders.build_bpe(bpe_args)
         return bpe_tokenizer
 
@@ -216,6 +236,7 @@ class AVHubertPretrainingTask(FairseqTask):
     ) -> "AVHubertPretrainingTask":
         if cfg.pdb:
             import pdb
+
             pdb.set_trace()
         return cls(cfg)
 
@@ -226,7 +247,9 @@ class AVHubertPretrainingTask(FairseqTask):
 
     def load_dataset(self, split: str, **kwargs) -> None:
         manifest = f"{self.cfg.data}/{split}.tsv"
-        dictionaries = [self.target_dictionary] if self.fine_tuning else self.dictionaries
+        dictionaries = (
+            [self.target_dictionary] if self.fine_tuning else self.dictionaries
+        )
         pad_list = [dictionary.pad() for dictionary in dictionaries]
         eos_list = [dictionary.eos() for dictionary in dictionaries]
         if not self.cfg.is_s2s:
@@ -234,13 +257,18 @@ class AVHubertPretrainingTask(FairseqTask):
         else:
             logger.info(f"Using tokenizer")
             bpe_tokenizer = self.s2s_tokenizer
-            procs = [LabelEncoderS2SToken(dictionary, bpe_tokenizer) for dictionary in dictionaries]
-        paths = [
-            f"{self.get_label_dir()}/{split}.{l}" for l in self.cfg.labels
-        ]
-        image_aug = self.cfg.image_aug if split == 'train' else False
-        noise_fn, noise_snr = f"{self.cfg.noise_wav}/{split}.tsv" if self.cfg.noise_wav is not None else None, eval(self.cfg.noise_snr)
-        noise_num = self.cfg.noise_num # 
+            procs = [
+                LabelEncoderS2SToken(dictionary, bpe_tokenizer)
+                for dictionary in dictionaries
+            ]
+        paths = [f"{self.get_label_dir()}/{split}.{l}" for l in self.cfg.labels]
+        image_aug = self.cfg.image_aug if split == "train" else False
+        noise_fn, noise_snr = (
+            f"{self.cfg.noise_wav}/{split}.tsv"
+            if self.cfg.noise_wav is not None
+            else None
+        ), eval(self.cfg.noise_snr)
+        noise_num = self.cfg.noise_num  #
         self.datasets[split] = AVHubertDataset(
             manifest,
             sample_rate=self.cfg.sample_rate,
@@ -268,19 +296,22 @@ class AVHubertPretrainingTask(FairseqTask):
             noise_fn=noise_fn,
             noise_prob=self.cfg.noise_prob,
             noise_snr=noise_snr,
-            noise_num=noise_num
+            noise_num=noise_num,
         )
 
     def max_positions(self) -> Tuple[int, int]:
         return (sys.maxsize, sys.maxsize)
 
-    def filter_indices_by_size(
-        self, indices: np.array, *args, **kwargs
-    ) -> np.array:
+    def filter_indices_by_size(self, indices: np.array, *args, **kwargs) -> np.array:
         return indices
 
     def build_generator(
-        self, models, args, seq_gen_cls=None, extra_gen_cls_kwargs=None, prefix_allowed_tokens_fn=None,
+        self,
+        models,
+        args,
+        seq_gen_cls=None,
+        extra_gen_cls_kwargs=None,
+        prefix_allowed_tokens_fn=None,
     ):
         """
         Build a :class:`~fairseq.SequenceGenerator` instance for this

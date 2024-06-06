@@ -172,7 +172,9 @@ class SequenceGenerator(nn.Module):
                 yield id, src, ref, hypos[i]
 
     @torch.no_grad()
-    def generate(self, models, sample: Dict[str, Dict[str, Tensor]], **kwargs) -> List[List[Dict[str, Tensor]]]:
+    def generate(
+        self, models, sample: Dict[str, Dict[str, Tensor]], **kwargs
+    ) -> List[List[Dict[str, Tensor]]]:
         """Generate translations. Match the api of other fairseq generators.
 
         Args:
@@ -224,16 +226,19 @@ class SequenceGenerator(nn.Module):
                 else torch.tensor(src_tokens.size(-1)).to(src_tokens)
             )
         else:
-            raise Exception("expected src_tokens or source in net input. input keys: " + str(net_input.keys()))
+            raise Exception(
+                "expected src_tokens or source in net input. input keys: "
+                + str(net_input.keys())
+            )
 
         # bsz: total number of sentences in beam
         # Note that src_tokens may have more than 2 dimensions (i.e. audio features)
-        if src_tokens['audio'] is not None:
-            bsz, src_len = src_tokens['audio'].size()[:2]
-            src_device = src_tokens['audio'].device
+        if src_tokens["audio"] is not None:
+            bsz, src_len = src_tokens["audio"].size()[:2]
+            src_device = src_tokens["audio"].device
         else:
-            bsz, src_len = net_input['padding_mask'].size()
-            src_device = src_tokens['video'].device
+            bsz, src_len = net_input["padding_mask"].size()
+            src_device = src_tokens["video"].device
         beam_size = self.beam_size
         if constraints is not None and not self.search.supports_constraints:
             raise NotImplementedError(
@@ -763,7 +768,14 @@ class EnsembleModel(nn.Module):
         return self.has_incremental
 
     def max_decoder_positions(self):
-        return min([m.max_decoder_positions() for m in self.models if hasattr(m, "max_decoder_positions")] + [sys.maxsize])
+        return min(
+            [
+                m.max_decoder_positions()
+                for m in self.models
+                if hasattr(m, "max_decoder_positions")
+            ]
+            + [sys.maxsize]
+        )
 
     @torch.jit.export
     def forward_encoder(self, net_input: Dict[str, Tensor]):
