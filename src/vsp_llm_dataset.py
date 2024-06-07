@@ -231,9 +231,8 @@ class VSP_LLM_dataset(FairseqDataset):
             "vi": "tiếng Việt",
         }
 
-        assert self.single_target == (
-            self.label_rates[0] == -1
-        ), f"single target should be equivalent to sequence label (label_rate==-1)"
+        assert self.single_target == (self.label_rates[0] == -1), \
+            "single target should be equivalent to sequence label (label_rate==-1)"
         if store_labels:
             self.label_list = [load_label(p, inds, tot) for p in label_paths]
         else:
