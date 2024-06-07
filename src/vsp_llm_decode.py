@@ -165,9 +165,15 @@ def _main(cfg, output_file):
         if "net_input" not in sample:
             continue
 
-        sample["net_input"]["source"]["video"] = (
-            sample["net_input"]["source"]["video"].to(torch.half)
-        )
+        if "video" in cfg.override.modalities:
+            sample["net_input"]["source"]["video"] = (
+                sample["net_input"]["source"]["video"].to(torch.half)
+            )
+        if "audio" in cfg.override.modalities:
+            sample["net_input"]["source"]["audio"] = (
+                sample["net_input"]["source"]["audio"].to(torch.half)
+            )
+
         best_hypo = model.generate(
             target_list=sample["target"],
             generation_config=cfg.generation,
