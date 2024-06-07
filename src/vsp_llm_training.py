@@ -12,7 +12,7 @@ from typing import List, Optional, Tuple
 from fairseq.data import Dictionary
 from fairseq.tasks import register_task
 from fairseq.tasks.fairseq_task import FairseqTask
-from configs import VSP_LLM_TrainingConfig
+from src.configs import VSP_LLM_TrainingConfig
 
 
 DBG = True if len(sys.argv) == 1 else False
