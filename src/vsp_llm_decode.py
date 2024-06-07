@@ -209,7 +209,7 @@ def _main(cfg, output_file):
 
             wer = editdistance.eval(hypo_str, ref_sent) * 100 / len(ref_sent)
             result = (
-                "\nID: {0}\nINST: {1}\nREF: {2}\nHYP: {3}\nWER: {4:.2f}"
+                "\nID: {0}\nINST: {1}\nREF: {2}\nHYP: {3}\nWER: {4:.2f}\n"
                 .format(utt_id, instruction, ref_sent, hypo_str, wer)
             )
             logger.info(result)
