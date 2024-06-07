@@ -1,13 +1,10 @@
 common:
   user_dir: ???
-  #fp16: true
+  fp16: true
 
 generation:
-  beam: 20
-  lenpen: 0.0
-  max_len_a: 1.0
-  max_len_b: 0
-  lm_weight: 0
+  max_length: 100
+  num_beams: 30
 
 common_eval:
   results_path: ???
@@ -15,11 +12,11 @@ common_eval:
 
 dataset:
   max_tokens: 1000
-  gen_subset: test
+  gen_subset: ???
   num_workers: 0
 
 override:
   noise_prob: 0.0
   noise_snr: 0
-  modalities: ['video']
+  modalities: ["video", "audio"]
   llm_ckpt_path: ???
