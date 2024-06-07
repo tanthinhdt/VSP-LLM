@@ -325,12 +325,7 @@ class avhubert_llm_seq2seq_cluster_count(BaseFairseqModel):
     @torch.no_grad()
     def generate(
         self,
-        num_beams=20,
-        max_length=30,
-        min_length=1,
-        top_p=0.9,
-        repetition_penalty=1.0,
-        length_penalty=0.0,
+        generation_config,
         **kwargs,
     ):
         output = self.encoder(**kwargs)
@@ -358,13 +353,7 @@ class avhubert_llm_seq2seq_cluster_count(BaseFairseqModel):
         self.decoder.config.use_cache = True
         outputs = self.decoder.generate(
             inputs_embeds=llm_input,
-            top_p=top_p,
-            num_beams=num_beams,
-            max_new_tokens=max_length,
-            min_length=min_length,
-            repetition_penalty=repetition_penalty,
-            do_sample=True,
-            length_penalty=length_penalty,
+            **generation_config
         )
 
         return outputs
