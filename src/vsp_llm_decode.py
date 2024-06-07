@@ -25,64 +25,19 @@ from fairseq.logging.meters import StopwatchMeter, TimeMeter
 from omegaconf import DictConfig
 from pathlib import Path
 from hydra.core.config_store import ConfigStore
-from fairseq.dataclass.configs import (
-    CheckpointConfig,
-    CommonConfig,
-    CommonEvalConfig,
-    GenerationConfig,
-    DatasetConfig,
-    DistributedTrainingConfig,
-    FairseqDataclass,
-)
 from dataclasses import dataclass, field, is_dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
 from omegaconf import OmegaConf, MISSING
 from fairseq import tasks
 from transformers import AutoTokenizer
+from configs import InferConfig
+
 
 logging.root.setLevel(logging.INFO)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 config_path = Path(__file__).resolve().parent / "conf"
-
-
-@dataclass
-class OverrideConfig(FairseqDataclass):
-    noise_wav: Optional[str] = field(default=None, metadata={"help": "noise wav file"})
-    noise_prob: float = field(default=0, metadata={"help": "noise probability"})
-    noise_snr: float = field(default=0, metadata={"help": "noise SNR in audio"})
-    modalities: List[str] = field(
-        default_factory=lambda: ["video"], metadata={"help": "which modality to use"}
-    )
-    data: Optional[str] = field(
-        default=None, metadata={"help": "path to test data directory"}
-    )
-    label_dir: Optional[str] = field(
-        default=None, metadata={"help": "path to test label directory"}
-    )
-    eval_bleu: bool = field(default=False, metadata={"help": "evaluate bleu score"})
-    llm_ckpt_path: str = field(
-        default=MISSING, metadata={"help": "path to llama checkpoint"}
-    )
-
-
-@dataclass
-class InferConfig(FairseqDataclass):
-    task: Any = None
-    generation: GenerationConfig = GenerationConfig()
-    common: CommonConfig = CommonConfig()
-    common_eval: CommonEvalConfig = CommonEvalConfig()
-    checkpoint: CheckpointConfig = CheckpointConfig()
-    distributed_training: DistributedTrainingConfig = DistributedTrainingConfig()
-    dataset: DatasetConfig = DatasetConfig()
-    override: OverrideConfig = OverrideConfig()
-    is_ax: bool = field(
-        default=False,
-        metadata={
-            "help": "if true, assumes we are using ax for tuning and returns a tuple for ax to consume"
-        },
-    )
 
 
 def main(cfg: DictConfig):
@@ -166,7 +121,6 @@ def _main(cfg, output_file):
 
     # Load dataset (possibly sharded)
     cfg.dataset.batch_size = 1
-    cfg.dataset.max_tokens = 1000
     itr = task.get_batch_iterator(
         dataset=task.dataset(cfg.dataset.gen_subset),
         max_tokens=cfg.dataset.max_tokens,
@@ -216,8 +170,7 @@ def _main(cfg, output_file):
         )
         best_hypo = model.generate(
             target_list=sample["target"],
-            num_beams=cfg.generation.beam,
-            length_penalty=cfg.generation.lenpen,
+            generation_config=cfg.generation,
             **sample["net_input"],
         )
         best_hypo = tokenizer.batch_decode(
@@ -225,6 +178,7 @@ def _main(cfg, output_file):
             skip_special_tokens=True,
             clean_up_tokenization_spaces=False,
         )
+
         for i in range(len(sample["id"])):
             utt_id = sample["utt_id"][i]
             result_dict["utt_id"].append(utt_id)
