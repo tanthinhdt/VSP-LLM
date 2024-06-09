@@ -272,6 +272,15 @@ class InferConfig(FairseqDataclass):
     is_ax: bool = field(
         default=False,
         metadata={
-            "help": "if true, assumes we are using ax for tuning and returns a tuple for ax to consume"
+            "help": (
+                "if true, assumes we are using ax for tuning"
+                "and returns a tuple for ax to consume"
+            )
         },
+    )
+    show_sample: bool = field(
+        default=False,
+        metadata={
+            "help": "Show ref, hypo and evaluation results of each sample"
+        }
     )
