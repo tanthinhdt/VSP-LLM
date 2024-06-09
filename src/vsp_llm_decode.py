@@ -11,11 +11,11 @@ import os
 import sys
 import json
 import hashlib
-import editdistance
 import torch
 import hydra
 import sacrebleu
 import numpy as np
+import editdistance as ed
 from argparse import Namespace
 from itertools import chain
 from fairseq import checkpoint_utils, options, tasks, utils, distributed_utils
@@ -207,10 +207,18 @@ def _main(cfg, output_file):
             )
             result_dict["instruction"].append(instruction)
 
-            wer = editdistance.eval(hypo_str, ref_sent) * 100 / len(ref_sent)
+            if not cfg.show_sample:
+                continue
+
+            cer = ed.eval(hypo_str, ref_sent) * 100 / len(ref_sent)
+            hypo_words, ref_words = hypo_str.split(), ref_sent.split()
+            wer = ed.eval(hypo_words, ref_words) * 100 / len(ref_words)
             result = (
-                "\nID: {0}\nINST: {1}\nREF: {2}\nHYP: {3}\nWER: {4:.2f}\n"
-                .format(utt_id, instruction, ref_sent, hypo_str, wer)
+                (
+                    "\nID: {0}\nINST: {1}\nREF: {2}\nHYP: {3}\nWER: {4:.2f}"
+                    "\nCER: {5:2f}\n"
+                )
+                .format(utt_id, instruction, ref_sent, hypo_str, wer, cer)
             )
             logger.info(result)
 
@@ -221,17 +229,29 @@ def _main(cfg, output_file):
     json.dump(result_dict, open(result_fn, "w"), indent=4)
 
     if not cfg.override.eval_bleu:
-        n_err, n_total = 0, 0
+        n_wer, n_w_total = 0, 0
+        n_cer, n_c_total = 0, 0
         assert len(result_dict["hypo"]) == len(result_dict["ref"])
         for hypo, ref in zip(result_dict["hypo"], result_dict["ref"]):
+            n_cer += ed.eval(hypo, ref)
+            n_c_total += len(ref)
             hypo, ref = hypo.strip().split(), ref.strip().split()
-            n_err += editdistance.eval(hypo, ref)
-            n_total += len(ref)
-        wer = 100 * n_err / n_total
+            n_wer += ed.eval(hypo, ref)
+            n_w_total += len(ref)
+
+        cer = 100 * n_cer / n_c_total
+        cer_fn = f"{cfg.common_eval.results_path}/cer.{fid}"
+        with open(cer_fn, "w") as fo:
+            fo.write(f"CER: {cer}\n")
+            fo.write(f"err / num_ref_chars = {n_cer} / {n_c_total}\n\n")
+            fo.write(f"{yaml_str}")
+        logger.info(f"CER: {cer}%")
+
+        wer = 100 * n_wer / n_w_total
         wer_fn = f"{cfg.common_eval.results_path}/wer.{fid}"
         with open(wer_fn, "w") as fo:
             fo.write(f"WER: {wer}\n")
-            fo.write(f"err / num_ref_words = {n_err} / {n_total}\n\n")
+            fo.write(f"err / num_ref_words = {n_wer} / {n_w_total}\n\n")
             fo.write(f"{yaml_str}")
         logger.info(f"WER: {wer}%")
     else:
