@@ -2,6 +2,7 @@ import os
 import argparse
 import logging
 import pandas as pd
+from tqdm import tqdm
 from datasets import Dataset
 
 
@@ -23,10 +24,23 @@ def get_args() -> argparse.Namespace:
         help="Directory containing visual, audio and text data.",
     )
     parser.add_argument(
-        "--split", type=str, required=True, help="Split to create manifest for."
+        "--split",
+        type=str,
+        required=True,
+        help="Split to create manifest for.",
     )
-    parser.add_argument("--src-lang", type=str, default="vi", help="Source language.")
-    parser.add_argument("--dst-lang", type=str, default="vi", help="Target language.")
+    parser.add_argument(
+        "--src-lang",
+        type=str,
+        default="vi",
+        help="Source language.",
+    )
+    parser.add_argument(
+        "--dst-lang",
+        type=str,
+        default="vi",
+        help="Target language.",
+    )
     parser.add_argument(
         "--frac",
         type=float,
@@ -47,19 +61,19 @@ def filter(
     split: str,
     data_dir: str,
 ):
+    if sample["split"] != split:
+        return False
+
     rel_visual_path = os.path.join(
-        "visual",
-        split + "_" + sample["shard"].zfill(3),
-        sample["id"] + ".mp4",
+        "visual", sample["shard"], sample["id"] + ".mp4",
     )
     visual_path = os.path.join(data_dir, rel_visual_path)
     if not os.path.exists(visual_path):
+        logging.error(f"File {visual_path} does not exist.")
         return False
 
     rel_audio_path = os.path.join(
-        "audio",
-        split + "_" + str(sample["shard"]).zfill(3),
-        sample["id"] + ".wav",
+        "audio", sample["shard"], sample["id"] + ".wav",
     )
     audio_path = os.path.join(data_dir, rel_audio_path)
     if not os.path.exists(audio_path):
@@ -81,28 +95,14 @@ def create_manifest(
     manifest = []
     texts = []
 
-    for i, sample in enumerate(split_df.itertuples()):
-        logging.info(f"[{i+1}/{len(split_df)}] Processing {sample.id}")
-
+    progress_bar = tqdm(enumerate(split_df.itertuples()), total=len(split_df))
+    for i, sample in progress_bar:
         rel_visual_path = os.path.join(
-            "visual",
-            split + "_" + str(sample.shard).zfill(3),
-            f"{sample.id}.mp4",
+            "visual", sample.shard, f"{sample.id}.mp4",
         )
-        visual_path = os.path.join(data_dir, rel_visual_path)
-        if not os.path.exists(visual_path):
-            logging.error(f"File {visual_path} does not exist.")
-            continue
-
         rel_audio_path = os.path.join(
-            "audio",
-            split + "_" + str(sample.shard).zfill(3),
-            f"{sample.id}.wav",
+            "audio", sample.shard, f"{sample.id}.wav",
         )
-        audio_path = os.path.join(data_dir, rel_audio_path)
-        if not os.path.exists(audio_path):
-            logging.error(f"File {audio_path} does not exist.")
-            continue
 
         manifest.append(
             "\t".join(
@@ -130,10 +130,7 @@ def main(args: argparse.Namespace) -> None:
     if not os.path.exists(args.data_dir):
         logging.error(f"Directory {args.data_dir} does not exist.")
         return
-    metadata_path = os.path.join(
-        args.data_dir,
-        f"{args.split}.parquet",
-    )
+    metadata_path = os.path.join(args.data_dir, "metadata.parquet")
     if not os.path.exists(metadata_path):
         logging.error(f"File {metadata_path} does not exist.")
         return
@@ -147,36 +144,37 @@ def main(args: argparse.Namespace) -> None:
         },
     )
 
-    split_df = pd.read_parquet(metadata_path)
-    logging.info(f"Found {len(split_df)} ids.")
+    df = pd.read_parquet(metadata_path)
+    logging.info(f"Found {len(df)} ids.")
 
-    split_df = pd.merge(
-        split_df,
+    df = pd.merge(
+        df,
         mapping_df,
         how="left",
-        on=["id", "shard"],
+        on=["id", "shard", "split"],
     )
-    split_df = (
-        Dataset.from_pandas(split_df)
+    df = (
+        Dataset.from_pandas(df)
         .filter(
             filter,
             fn_kwargs={"split": args.split, "data_dir": args.data_dir},
             num_proc=10,
+            load_from_cache_file=False,
         )
         .to_pandas()
     )
-    logging.info(f"Get {len(split_df)} after filtering")
+    logging.info(f"Get {len(df)} after filtering")
 
     if not (0 <= args.frac <= 1):
         args.frac = 1
-    split_df = split_df.groupby("channel", group_keys=False).apply(
+    df = df.groupby("channel", group_keys=False).apply(
         lambda x: x.sample(frac=args.frac)
     )
-    logging.info(f"Stratified sampling {len(split_df)} samples")
+    logging.info(f"Stratified sampling {len(df)} samples")
 
     create_manifest(
         split=args.split,
-        split_df=split_df,
+        split_df=df,
         src_lang=args.src_lang,
         dst_lang=args.dst_lang,
         data_dir=args.data_dir,
