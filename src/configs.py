@@ -245,7 +245,7 @@ class GenerationConfig(FairseqDataclass):
     num_beam_groups: int = field(default=1)
 
     temperature: float = field(default=1.0)
-    top_k: float = field(default=50)
+    top_k: int = field(default=50)
     top_p: float = field(default=1.0)
     min_p: Optional[float] = field(default=None)
     typical_p: float = field(default=1.0)
