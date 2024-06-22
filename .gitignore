@@ -166,3 +166,4 @@ outputs/
 /data/
 *.pt
 experiments/
+evaluations/
