@@ -8,13 +8,12 @@ import logging
 import math
 import os
 import sys
-
 import fairseq
 import torch
-import torch.nn.functional as F
 import tqdm
-from npy_append_array import NpyAppendArray
 import numpy as np
+import torch.nn.functional as F
+from npy_append_array import NpyAppendArray
 from python_speech_features import logfbank
 from scipy.io import wavfile
 
@@ -64,8 +63,10 @@ class HubertFeatureReader(object):
                 res = stack_order - len(feats) % stack_order
                 res = np.zeros([res, feat_dim]).astype(feats.dtype)
                 feats = np.concatenate([feats, res], axis=0)
-            feats = feats.reshape((-1, stack_order, feat_dim)).reshape(
-                -1, stack_order * feat_dim
+            feats = (
+                feats
+                .reshape((-1, stack_order, feat_dim))
+                .reshape(-1, stack_order * feat_dim)
             )
             return feats
 
@@ -73,10 +74,9 @@ class HubertFeatureReader(object):
         video_feats = self.load_image(video_fn)
 
         audio_fn = audio_fn.split(":")[0]
-
         sample_rate, wav_data = wavfile.read(audio_fn)
         assert sample_rate == 16_000 and len(wav_data.shape) == 1
-        audio_feats = logfbank(wav_data, samplerate=sample_rate).astype(np.float32)
+        audio_feats = logfbank(wav_data, sample_rate).astype(np.float32)
         audio_feats = stacker(audio_feats, self.stack_order_audio)
 
         diff = len(audio_feats) - len(video_feats)
@@ -84,11 +84,15 @@ class HubertFeatureReader(object):
             audio_feats = np.concatenate(
                 [
                     audio_feats,
-                    np.zeros([-diff, audio_feats.shape[-1]], dtype=audio_feats.dtype),
+                    np.zeros(
+                        [-diff, audio_feats.shape[-1]],
+                        dtype=audio_feats.dtype
+                    ),
                 ]
             )
         elif diff > 0:
             audio_feats = audio_feats[:-diff]
+
         return video_feats, audio_feats
 
     def load_image(self, audio_name):
@@ -99,15 +103,21 @@ class HubertFeatureReader(object):
 
     def get_feats(self, path, ref_len=None):
         video_feats, audio_feats = self.load_feature(path, ref_len)
+
         with torch.no_grad():
             audio_feats, video_feats = (
                 torch.from_numpy(audio_feats.astype(np.float32)).cuda(),
                 torch.from_numpy(video_feats.astype(np.float32)).cuda(),
             )
+
             if self.task.cfg.normalize:
                 audio_feats = F.layer_norm(audio_feats, audio_feats.shape[1:])
+
             video_feats = (
-                video_feats.unsqueeze(dim=0).permute((0, 4, 1, 2, 3)).contiguous()
+                video_feats
+                .unsqueeze(dim=0)
+                .permute((0, 4, 1, 2, 3))
+                .contiguous()
             )
             audio_feats = audio_feats.unsqueeze(dim=0).transpose(1, 2)
 
@@ -123,7 +133,6 @@ class HubertFeatureReader(object):
                 mask=False,
                 output_layer=output_layer,
                 ret_conv=ret_conv,
-                # output_layer=self.layer,
             )
             return feat.squeeze(dim=0)
 
@@ -165,7 +174,7 @@ def dump_feature(
     custom_utils=None,
     **kwargs,
 ):
-    reader = HubertFeatureReader(ckpt_path, layer, max_chunk, custom_utils=custom_utils)
+    reader = HubertFeatureReader(ckpt_path, layer, max_chunk, custom_utils)
     generator, num = get_path_iterator(f"{tsv_dir}/{split}.tsv", nshard, rank)
     iterator = generator()
 
