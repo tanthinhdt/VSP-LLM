@@ -310,8 +310,10 @@ class VSP_LLM_dataset(FairseqDataset):
                 res = stack_order - len(feats) % stack_order
                 res = np.zeros([res, feat_dim]).astype(feats.dtype)
                 feats = np.concatenate([feats, res], axis=0)
-            feats = feats.reshape((-1, stack_order, feat_dim)).reshape(
-                -1, stack_order * feat_dim
+            feats = (
+                feats
+                .reshape((-1, stack_order, feat_dim))
+                .reshape(-1, stack_order * feat_dim)
             )
             return feats
 
@@ -427,12 +429,10 @@ class VSP_LLM_dataset(FairseqDataset):
                 audio_feats = F.layer_norm(audio_feats, audio_feats.shape[1:])
 
         cluster_counts = self.load_units(index)
-        labels = [
-            self.llm_tokenizer(
-                self.label_list[0][index], return_tensors="pt"
-            ).input_ids[0]
-        ]
-        labels = [torch.cat((labels[0], torch.tensor([2]).long()))]
+        labels = self.llm_tokenizer(
+            self.label_list[0][index], return_tensors="pt"
+        ).input_ids[0]
+        labels = [torch.cat((labels, torch.tensor([2]).long()))]
 
         fid = self.names[index][1].split(":")[1]
         fid, src_lang, tgt_lang = fid.split("-")
@@ -580,7 +580,7 @@ class VSP_LLM_dataset(FairseqDataset):
         collated_audios = audios[0].new_zeros(
             [len(audios), audio_size] + audio_feat_shape
         )
-        padding_mask = torch.BoolTensor(len(audios), audio_size).fill_(False)  #
+        padding_mask = torch.BoolTensor(len(audios), audio_size).fill_(False)
         start_known = audio_starts is not None
         audio_starts = [0 for _ in audios] if not start_known else audio_starts
 
@@ -600,11 +600,15 @@ class VSP_LLM_dataset(FairseqDataset):
                 )
 
         if len(audios[0].shape) == 2:
-            collated_audios = collated_audios.transpose(1, 2)  # [B, T, F] -> [B, F, T]
+            # [B, T, F] -> [B, F, T]
+            collated_audios = collated_audios.transpose(1, 2)
         else:
-            collated_audios = collated_audios.permute(
-                (0, 4, 1, 2, 3)
-            ).contiguous()  # [B, T, H, W, C] -> [B, C, T, H, W]
+            # [B, T, H, W, C] -> [B, C, T, H, W]
+            collated_audios = (
+                collated_audios
+                .permute((0, 4, 1, 2, 3))
+                .contiguous()
+            )
 
         return collated_audios, padding_mask, audio_starts
 
